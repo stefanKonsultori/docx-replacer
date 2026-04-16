@@ -11,33 +11,42 @@ def health():
 
 @app.route('/replace', methods=['POST'])
 def replace():
-    # Get the uploaded file
     if 'file' not in request.files:
+        print("ERROR: No file provided", flush=True)
         return {'error': 'No file provided'}, 400
-    
+
     file = request.files['file']
-    data = request.form.to_dict()  # All other form fields are replacements
-    
-    # Read the docx (which is a ZIP)
+    data = request.form.to_dict()
+
+    print(f"Received file: {file.filename}", flush=True)
+    print(f"Received data fields: {list(data.keys())}", flush=True)
+    print(f"Data values: {data}", flush=True)
+
     file_bytes = file.read()
+    print(f"File bytes length: {len(file_bytes)}", flush=True)
+
     zip_input = io.BytesIO(file_bytes)
     zip_output = io.BytesIO()
-    
-    # Open and process the ZIP
+
     with zipfile.ZipFile(zip_input, 'r') as zin:
         with zipfile.ZipFile(zip_output, 'w', zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
                 content = zin.read(item.filename)
-                
-                # Only do replacements in document.xml
+
                 if item.filename == 'word/document.xml':
                     xml = content.decode('utf-8')
+                    print(f"NACHNAME in XML: {'NACHNAME' in xml}", flush=True)
                     for key, value in data.items():
-                        xml = xml.replace('{{' + key + '}}', value or '')
+                        placeholder = '{{' + key + '}}'
+                        if placeholder in xml:
+                            print(f"Replacing {placeholder} with {value}", flush=True)
+                        else:
+                            print(f"NOT FOUND: {placeholder}", flush=True)
+                        xml = xml.replace(placeholder, value or '')
                     content = xml.encode('utf-8')
-                
+
                 zout.writestr(item, content)
-    
+
     zip_output.seek(0)
     return send_file(
         zip_output,
